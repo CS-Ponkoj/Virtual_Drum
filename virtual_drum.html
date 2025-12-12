@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Virtual Drum Kit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg-color: #050510;
+      --bg-accent: #16162a;
+      --shell-dark: #1b1b2a;
+      --shell-light: #33334a;
+      --shell-rim: #d3d3dd;
+      --cymbal: #f3c96b;
+      --cymbal-light: #ffe8a1;
+      --pad-active: #ffb347;
+      --pad-text: #f5f5ff;
+      --primary: #ff7a9b;
+      --primary-soft: #ffb3c7;
+      --secondary: #8ae1ff;
+      --record: #ff4b5c;
+      --record-soft: rgba(255, 75, 92, 0.2);
+      --text-muted: #aaa8c5;
+      --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.6);
+      --radius-lg: 20px;
+      --radius-xl: 26px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at top left, #302050 0, transparent 55%),
+        radial-gradient(circle at bottom right, #102033 0, transparent 60%),
+        linear-gradient(135deg, var(--bg-color), #050516);
+      color: #f8f7ff;
+    }
+
+    .studio-wrapper {
+      width: min(1180px, 100%);
+      padding: 18px;
+    }
+
+    .studio {
+      background: radial-gradient(circle at top, #262642, #0b0b16);
+      border-radius: 28px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .studio::before {
+      content: "";
+      position: absolute;
+      inset: -80px;
+      opacity: 0.15;
+      background-image: radial-gradient(circle at top, #ffffff10 0, transparent 55%);
+      pointer-events: none;
+    }
+
+    .studio-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: relative;
+      z-index: 1;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .app-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-title span.badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      text-transform: none;
+      font-weight: 500;
+      color: var(--primary-soft);
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .studio-icon {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.1));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .studio-icon span.emoji {
+      font-size: 1.3rem;
+      filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4));
+    }
+
+    .studio-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+      gap: 18px;
+      padding-top: 16px;
+      position: relative;
+      z-index: 1;
+      align-items: stretch;
+    }
+
+    /* Drum kit visual */
+
+    .kit-section {
+      background: linear-gradient(145deg, #101024, #050510);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kit-section::before {
+      content: "";
+      position: absolute;
+      right: -90px;
+      top: -50px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(255, 122, 155, 0.25), transparent 70%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .kit-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .mini-led {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .mini-led-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--secondary), #0ff);
+      box-shadow: 0 0 8px rgba(138, 225, 255, 0.8);
+    }
+
+    .drum-stage {
+      position: relative;
+      background: radial-gradient(circle at top, #272746, #05050e);
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 26px 16px 22px;
+      box-shadow: inset 0 18px 30px rgba(0, 0, 0, 0.7);
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stage-floor {
+      position: absolute;
+      left: -5%;
+      right: -5%;
+      bottom: -6px;
+      height: 50px;
+      background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45), transparent 70%);
+      pointer-events: none;
+    }
+
+    .drum-kit-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-rows: repeat(3, auto);
+      gap: 14px;
+      align-items: center;
+      justify-items: center;
+      max-width: 640px;
+      width: 100%;
+    }
+
+    .drum-piece {
+      position: relative;
+      border-radius: 50%;
+      border: 3px solid var(--shell-rim);
+      background: radial-gradient(circle at top left, var(--shell-light), var(--shell-dark));
+      box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.8),
+        inset 0 3px 6px rgba(255, 255, 255, 0.08);
+      touch-action: manipulation;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: var(--pad-text);
+      text-align: center;
+      transition:
+        transform 80ms ease-out,
+        box-shadow 80ms ease-out,
+        border-color 80ms ease-out,
+        background 80ms ease-out;
+    }
+
+    .drum-piece span.key {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .drum-piece span.label {
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .drum-piece span.sub {
+      font-size: 0.64rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .drum-piece.active {
+      transform: translateY(3px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.9);
+      border-color: var(--pad-active);
+      background: radial-gradient(circle at top, #4d3d23, #1a1108);
+    }
+
+    /* Layout and sizing so kit is main focus on desktop */
+
+    .drum-piece.kick {
+      grid-column: 3;
+      grid-row: 3;
+      width: 180px;
+      height: 180px;
+    }
+
+    .drum-piece.snare {
+      grid-column: 3;
+      grid-row: 2;
+      width: 120px;
+      height: 120px;
+    }
+
+    .drum-piece.hihat {
+      grid-column: 1;
+      grid-row: 2 / span 2;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      border-width: 2px;
+      background: radial-gradient(circle at top, var(--cymbal-light), var(--cymbal));
+      box-shadow:
+        0 10px 16px rgba(0, 0, 0, 0.9),
+        inset 0 2px 3px rgba(255, 255, 255, 0.5);
+      border-color: rgba(131, 93, 21, 0.9);
+    }
+
+    .drum-piece.tom1 {
+      grid-column: 2;
+      grid-row: 1;
+      width: 110px;
+      height: 110px;
+    }
+
+    .drum-piece.tom2 {
+      grid-column: 4;
+      grid-row: 1;
+      width: 110px;
+      height: 110px;
+    }
+
+    .drum-piece.floor {
+      grid-column: 5;
+      grid-row: 2 / span 2;
+      width: 130px;
+      height: 130px;
+    }
+
+    .drum-piece.crash {
+      grid-column: 1 / span 2;
+      grid-row: 1;
+      width: 115px;
+      height: 115px;
+      background: radial-gradient(circle at top, var(--cymbal-light), var(--cymbal));
+      border-color: rgba(131, 93, 21, 0.9);
+      border-width: 2px;
+    }
+
+    .drum-piece.ride {
+      grid-column: 4 / span 2;
+      grid-row: 1;
+      width: 115px;
+      height: 115px;
+      background: radial-gradient(circle at top, var(--cymbal-light), var(--cymbal));
+      border-color: rgba(131, 93, 21, 0.9);
+      border-width: 2px;
+    }
+
+    .drum-piece:focus-visible {
+      outline: 2px solid var(--secondary);
+      outline-offset: 2px;
+    }
+
+    .kit-front-panel {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .kit-front-panel span {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(0, 0, 0, 0.35);
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    /* Right panel controls and how to play */
+
+    .control-section {
+      background: linear-gradient(155deg, #151525, #050512);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .control-section::before {
+      content: "";
+      position: absolute;
+      left: -60px;
+      bottom: -60px;
+      width: 220px;
+      height: 220px;
+      background: radial-gradient(circle, rgba(138, 225, 255, 0.25), transparent 70%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .control-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .control-header-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+    }
+
+    .record-status {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .record-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--record-soft);
+      border: 1px solid var(--record);
+      margin-right: 6px;
+      box-shadow: 0 0 10px rgba(255, 75, 92, 0.3);
+    }
+
+    .recording .record-dot {
+      background: var(--record);
+      box-shadow: 0 0 16px rgba(255, 75, 92, 0.85);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn {
+      border-radius: 999px;
+      padding: 7px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(8, 8, 30, 0.9);
+      color: #f7f7ff;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+      touch-action: manipulation;
+      transition:
+        background 120ms ease,
+        transform 80ms ease,
+        box-shadow 80ms ease,
+        border-color 120ms ease;
+    }
+
+    .btn span.icon {
+      font-size: 0.9rem;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .btn:not(:disabled):active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+    }
+
+    .btn-record {
+      border-color: var(--record);
+      background: linear-gradient(135deg, var(--record-soft), rgba(0, 0, 0, 0.9));
+    }
+
+    .btn-record.recording {
+      background: linear-gradient(135deg, var(--record), #630013);
+      box-shadow: 0 0 16px rgba(255, 75, 92, 0.7);
+    }
+
+    .btn-primary {
+      border-color: rgba(255, 255, 255, 0.24);
+      background: linear-gradient(135deg, rgba(255, 122, 155, 0.3), rgba(5, 5, 14, 0.95));
+    }
+
+    .btn-outline {
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .volume-row {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .volume-row span.label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      white-space: nowrap;
+    }
+
+    .volume-slider {
+      flex: 1;
+    }
+
+    .volume-slider input[type=range] {
+      width: 100%;
+      accent-color: var(--secondary);
+    }
+
+    .toggle-row {
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .toggle-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .toggle-row input[type=checkbox] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+    }
+
+    .hint-block {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(6, 6, 18, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .hint-block strong {
+      color: var(--primary-soft);
+      font-weight: 600;
+    }
+
+    .timeline {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      max-height: 110px;
+      overflow: auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .timeline-title {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.7rem;
+      margin-bottom: 6px;
+      color: #c3c2dd;
+    }
+
+    .timeline-empty {
+      font-style: italic;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .timeline-list {
+      list-style: none;
+    }
+
+    .timeline-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 2px 0;
+    }
+
+    .timeline-item span.sound {
+      color: #f4f3ff;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .timeline-item span.time {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    .how-to {
+      margin-top: 8px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(4, 4, 16, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .how-to-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: #e2e1ff;
+      margin-bottom: 4px;
+    }
+
+    .how-to ol {
+      padding-left: 16px;
+      margin-top: 4px;
+    }
+
+    .how-to li {
+      margin-bottom: 3px;
+      line-height: 1.35;
+    }
+
+    .how-to strong {
+      color: var(--primary-soft);
+      font-weight: 600;
+    }
+
+    /* Responsive */
+
+    @media (max-width: 900px) {
+      .studio-body {
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      }
+
+      .drum-piece.kick {
+        width: 160px;
+        height: 160px;
+      }
+
+      .drum-piece.snare {
+        width: 110px;
+        height: 110px;
+      }
+
+      .drum-piece.floor {
+        width: 120px;
+        height: 120px;
+      }
+
+      .drum-piece.hihat,
+      .drum-piece.tom1,
+      .drum-piece.tom2,
+      .drum-piece.crash,
+      .drum-piece.ride {
+        width: 100px;
+        height: 100px;
+      }
+    }
+
+    @media (max-width: 780px) {
+      .studio-body {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .studio-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .studio-icon {
+        align-self: flex-end;
+      }
+
+      .kit-section {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .studio {
+        padding: 16px;
+      }
+
+      .kit-section {
+        padding: 14px;
+      }
+
+      .drum-stage {
+        padding: 20px 10px 18px;
+      }
+
+      .drum-kit-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .drum-piece.kick {
+        width: 140px;
+        height: 140px;
+        grid-column: 2 / span 2;
+      }
+
+      .drum-piece.snare {
+        width: 100px;
+        height: 100px;
+      }
+
+      .drum-piece.floor {
+        width: 105px;
+        height: 105px;
+      }
+
+      .drum-piece.hihat,
+      .drum-piece.tom1,
+      .drum-piece.tom2,
+      .drum-piece.crash,
+      .drum-piece.ride {
+        width: 90px;
+        height: 90px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .app-title {
+        font-size: 1.15rem;
+      }
+
+      .drum-kit-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .drum-piece.kick {
+        grid-column: 2;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="studio-wrapper">
+    <div class="studio">
+      <header class="studio-header">
+        <div class="title-block">
+          <div class="app-title">
+            <span>Virtual Drum Kit</span>
+            <span class="badge">Studio Layout</span>
+          </div>
+          <p class="subtitle">
+            Play a full drum kit with your keyboard or by tapping the drums. Record loops and jam on top.
+          </p>
+        </div>
+        <div class="studio-icon">
+          <span class="emoji">🥁</span>
+          <span>Keyboard plus touch friendly</span>
+        </div>
+      </header>
+
+      <main class="studio-body">
+        <!-- Left: Drum kit visual (now larger and main focus) -->
+        <section class="kit-section" aria-label="Drum kit">
+          <div class="kit-header-row">
+            <div class="section-title">Drum Set</div>
+            <div class="mini-led">
+              <span class="mini-led-dot"></span>
+              Live
+            </div>
+          </div>
+
+          <div class="drum-stage">
+            <div class="stage-floor"></div>
+
+            <div class="drum-kit-grid">
+              <!-- Cymbals top row -->
+              <button class="drum-piece crash" data-key="q" data-sound="Crash" type="button">
+                <span class="key">Q</span>
+                <span class="label">Crash</span>
+                <span class="sub">Accent</span>
+              </button>
+
+              <button class="drum-piece ride" data-key="e" data-sound="Ride" type="button">
+                <span class="key">E</span>
+                <span class="label">Ride</span>
+                <span class="sub">Cymbal</span>
+              </button>
+
+              <!-- Rack toms -->
+              <button class="drum-piece tom1" data-key="w" data-sound="Tom 1" type="button">
+                <span class="key">W</span>
+                <span class="label">Tom 1</span>
+                <span class="sub">High</span>
+              </button>
+
+              <button class="drum-piece tom2" data-key="r" data-sound="Tom 2" type="button">
+                <span class="key">R</span>
+                <span class="label">Tom 2</span>
+                <span class="sub">Mid</span>
+              </button>
+
+              <!-- Hi-hat and floor tom -->
+              <button class="drum-piece hihat" data-key="a" data-sound="Hi-Hat" type="button">
+                <span class="key">A</span>
+                <span class="label">Hi-Hat</span>
+                <span class="sub">Closed</span>
+              </button>
+
+              <button class="drum-piece floor" data-key="l" data-sound="Floor Tom" type="button">
+                <span class="key">L</span>
+                <span class="label">Floor Tom</span>
+                <span class="sub">Low</span>
+              </button>
+
+              <!-- Snare and kick -->
+              <button class="drum-piece snare" data-key="s" data-sound="Snare" type="button">
+                <span class="key">S</span>
+                <span class="label">Snare</span>
+                <span class="sub">Backbeat</span>
+              </button>
+
+              <button class="drum-piece kick" data-key="space" data-sound="Kick" type="button">
+                <span class="key">Space</span>
+                <span class="label">Kick</span>
+                <span class="sub">Bass Drum</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="kit-front-panel">
+            <span>Tap or press keys</span>
+            <span>Space for kick</span>
+          </div>
+        </section>
+
+        <!-- Right: Controls, loop, how to play -->
+        <section class="control-section" aria-label="Controls and help">
+          <div class="control-header">
+            <div class="control-header-main">
+              <div class="panel-title">Recorder and Loop</div>
+              <div class="record-status" id="record-status">
+                <span class="record-dot"></span>
+                Idle
+              </div>
+            </div>
+          </div>
+
+          <div class="controls-row">
+            <button type="button" class="btn btn-record" id="record-btn">
+              <span class="icon">⏺</span>
+              <span class="label">Record</span>
+            </button>
+            <button type="button" class="btn btn-primary" id="play-btn" disabled>
+              <span class="icon">▶</span>
+              <span class="label">Play</span>
+            </button>
+            <button type="button" class="btn btn-outline" id="stop-btn" disabled>
+              <span class="icon">⏹</span>
+              <span class="label">Stop</span>
+            </button>
+            <button type="button" class="btn btn-outline" id="clear-btn" disabled>
+              <span class="icon">✕</span>
+              <span class="label">Clear</span>
+            </button>
+          </div>
+
+          <div class="volume-row">
+            <span class="label">Master volume</span>
+            <div class="volume-slider">
+              <input type="range" id="volume-slider" min="0" max="100" value="80" />
+            </div>
+          </div>
+
+          <div class="toggle-row">
+            <label>
+              <input type="checkbox" id="loop-toggle" />
+              <span>Loop playback</span>
+            </label>
+            <span>Repeat the recorded pattern until you press Stop.</span>
+          </div>
+
+          <div class="hint-block">
+            <div><strong>Quick keys</strong></div>
+            <div>Kick Space, Snare S, Hi hat A, Toms W R L, Crash Q, Ride E.</div>
+          </div>
+
+          <div class="timeline" aria-live="polite">
+            <div class="timeline-title">Recorded pattern</div>
+            <div id="timeline-content" class="timeline-empty">
+              No recording yet. Press Record and start playing.
+            </div>
+          </div>
+
+          <div class="how-to">
+            <div class="how-to-title">How to play</div>
+            <ol>
+              <li><strong>Play the kit</strong> Tap the drums or use keys Q W E R A S L and Space.</li>
+              <li><strong>Set the volume</strong> Use the Master volume slider to adjust loudness.</li>
+              <li><strong>Record a groove</strong> Press Record, play, then press Record again to stop.</li>
+              <li><strong>Play back</strong> Press Play to hear what you recorded.</li>
+              <li><strong>Loop it</strong> Turn on Loop playback and hit Play. Press Stop to end the loop.</li>
+              <li><strong>Try again</strong> Use Clear to erase the pattern and record something new.</li>
+            </ol>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Audio elements -->
+  <!-- Replace src paths with your own drum samples in a sounds folder -->
+  <audio id="audio-kick" src="sounds/kick.wav" preload="auto"></audio>
+  <audio id="audio-snare" src="sounds/snare.wav" preload="auto"></audio>
+  <audio id="audio-hihat" src="sounds/hihat_closed.wav" preload="auto"></audio>
+  <audio id="audio-tom1" src="sounds/tom1.wav" preload="auto"></audio>
+  <audio id="audio-tom2" src="sounds/tom2.wav" preload="auto"></audio>
+  <audio id="audio-floor" src="sounds/floor_tom.wav" preload="auto"></audio>
+  <audio id="audio-crash" src="sounds/crash.wav" preload="auto"></audio>
+  <audio id="audio-ride" src="sounds/ride.wav" preload="auto"></audio>
+
+  <script>
+    // Key to sound map
+    const soundMap = {
+      q: { id: "audio-crash", label: "Crash" },
+      w: { id: "audio-tom1", label: "Tom 1" },
+      e: { id: "audio-ride", label: "Ride" },
+      r: { id: "audio-tom2", label: "Tom 2" },
+      a: { id: "audio-hihat", label: "Hi-Hat" },
+      s: { id: "audio-snare", label: "Snare" },
+      l: { id: "audio-floor", label: "Floor Tom" },
+      " ": { id: "audio-kick", label: "Kick" } // space bar
+    };
+
+    const pieces = Array.from(document.querySelectorAll(".drum-piece"));
+    const recordBtn = document.getElementById("record-btn");
+    const playBtn = document.getElementById("play-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    const clearBtn = document.getElementById("clear-btn");
+    const recordStatus = document.getElementById("record-status");
+    const timelineContent = document.getElementById("timeline-content");
+    const volumeSlider = document.getElementById("volume-slider");
+    const loopToggle = document.getElementById("loop-toggle");
+
+    let isRecording = false;
+    let isPlayingBack = false;
+    let recordingStartTime = 0;
+    let events = []; // { key, soundLabel, timeOffset }
+    let masterVolume = 0.8;
+    let playbackTimeouts = [];
+    let stopRequested = false;
+
+    function playSound(key) {
+      const soundInfo = soundMap[key];
+      if (!soundInfo) return;
+
+      const audio = document.getElementById(soundInfo.id);
+      if (!audio) return;
+
+      // Apply master volume
+      audio.volume = masterVolume;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+
+      // Visual feedback
+      const piece = pieces.find(p => {
+        const k = p.dataset.key;
+        if (k === "space") {
+          return key === " ";
+        }
+        return k.toLowerCase() === key;
+      });
+
+      if (piece) {
+        piece.classList.add("active");
+        setTimeout(() => piece.classList.remove("active"), 80);
+      }
+
+      // Recording
+      if (isRecording) {
+        const now = performance.now();
+        const offset = now - recordingStartTime;
+        events.push({
+          key,
+          soundLabel: soundInfo.label,
+          timeOffset: offset
+        });
+        updateTimeline();
+      }
+    }
+
+    function updateRecordUI() {
+      if (isRecording) {
+        recordStatus.classList.add("recording");
+        recordStatus.innerHTML = '<span class="record-dot"></span>Recording…';
+        recordBtn.classList.add("recording");
+        recordBtn.querySelector(".label").textContent = "Stop";
+      } else {
+        recordStatus.classList.remove("recording");
+        recordStatus.innerHTML = '<span class="record-dot"></span>Idle';
+        recordBtn.classList.remove("recording");
+        recordBtn.querySelector(".label").textContent = "Record";
+      }
+    }
+
+    function updateTimeline() {
+      if (!events.length) {
+        timelineContent.className = "timeline-empty";
+        timelineContent.textContent = "No recording yet. Press Record and start playing.";
+        playBtn.disabled = true;
+        clearBtn.disabled = true;
+        stopBtn.disabled = true;
+        return;
+      }
+
+      timelineContent.className = "timeline-list";
+      const list = document.createElement("ul");
+      list.className = "timeline-list";
+
+      events.forEach(event => {
+        const li = document.createElement("li");
+        li.className = "timeline-item";
+
+        const soundSpan = document.createElement("span");
+        soundSpan.className = "sound";
+        soundSpan.textContent = event.soundLabel;
+
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "time";
+        timeSpan.textContent = (event.timeOffset / 1000).toFixed(2) + "s";
+
+        li.appendChild(soundSpan);
+        li.appendChild(timeSpan);
+        list.appendChild(li);
+      });
+
+      timelineContent.innerHTML = "";
+      timelineContent.appendChild(list);
+
+      playBtn.disabled = false;
+      clearBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function clearAllPlaybackTimeouts() {
+      playbackTimeouts.forEach(id => clearTimeout(id));
+      playbackTimeouts = [];
+    }
+
+    function toggleRecording() {
+      if (isPlayingBack) return;
+
+      if (!isRecording) {
+        // start new recording
+        events = [];
+        updateTimeline();
+        isRecording = true;
+        recordingStartTime = performance.now();
+      } else {
+        isRecording = false;
+      }
+      updateRecordUI();
+    }
+
+    function startPlaybackOnce() {
+      if (!events.length) return;
+
+      isPlayingBack = true;
+      playBtn.disabled = true;
+      recordBtn.disabled = true;
+      clearBtn.disabled = true;
+      stopBtn.disabled = false;
+      stopRequested = false;
+
+      clearAllPlaybackTimeouts();
+
+      const totalDuration = events[events.length - 1].timeOffset;
+
+      events.forEach(event => {
+        const delay = event.timeOffset;
+        const id = setTimeout(() => {
+          if (!stopRequested) {
+            playSound(event.key);
+          }
+        }, delay);
+        playbackTimeouts.push(id);
+      });
+
+      const endId = setTimeout(onPlaybackFinished, totalDuration + 80);
+      playbackTimeouts.push(endId);
+    }
+
+    function onPlaybackFinished() {
+      clearAllPlaybackTimeouts();
+
+      if (stopRequested || !loopToggle.checked) {
+        isPlayingBack = false;
+        recordBtn.disabled = false;
+        clearBtn.disabled = !events.length;
+        playBtn.disabled = !events.length;
+        stopBtn.disabled = true;
+        return;
+      }
+
+      // loop again
+      startPlaybackOnce();
+    }
+
+    function playbackRecording() {
+      if (!events.length || isPlayingBack) return;
+      startPlaybackOnce();
+    }
+
+    function stopPlayback() {
+      if (!isPlayingBack) return;
+      stopRequested = true;
+      clearAllPlaybackTimeouts();
+      isPlayingBack = false;
+      recordBtn.disabled = false;
+      clearBtn.disabled = !events.length;
+      playBtn.disabled = !events.length;
+      stopBtn.disabled = true;
+    }
+
+    function clearRecording() {
+      if (isPlayingBack) return;
+      events = [];
+      updateTimeline();
+    }
+
+    // Volume slider
+    volumeSlider.addEventListener("input", () => {
+      masterVolume = volumeSlider.value / 100;
+    });
+
+    // Event bindings for drums
+    pieces.forEach(piece => {
+      piece.addEventListener("click", () => {
+        let k = piece.dataset.key;
+        if (k === "space") {
+          playSound(" ");
+        } else {
+          playSound(k.toLowerCase());
+        }
+      });
+    });
+
+    // Keyboard input
+    window.addEventListener("keydown", event => {
+      const key = event.key;
+
+      // avoid scroll on space or enter
+      if (key === " " || key === "Enter") {
+        event.preventDefault();
+      }
+
+      if (key === " ") {
+        playSound(" ");
+        return;
+      }
+
+      const lower = key.toLowerCase();
+      if (soundMap[lower]) {
+        event.preventDefault();
+        playSound(lower);
+      }
+    });
+
+    // Buttons
+    recordBtn.addEventListener("click", toggleRecording);
+    playBtn.addEventListener("click", playbackRecording);
+    stopBtn.addEventListener("click", stopPlayback);
+    clearBtn.addEventListener("click", clearRecording);
+
+    // Initial UI
+    updateRecordUI();
+    updateTimeline();
+    masterVolume = volumeSlider.value / 100;
+  </script>
+</body>
+</html>

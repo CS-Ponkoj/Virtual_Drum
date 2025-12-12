@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Virtual Drum Kit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root{
+      --bg-color:#050510; --shell-dark:#1b1b2a; --shell-light:#33334a; --shell-rim:#d3d3dd;
+      --cymbal:#f3c96b; --cymbal-light:#ffe8a1; --pad-active:#ffb347; --pad-text:#f5f5ff;
+      --primary:#ff7a9b; --primary-soft:#ffb3c7; --secondary:#8ae1ff;
+      --record:#ff4b5c; --record-soft:rgba(255,75,92,.2); --text-muted:#aaa8c5;
+      --shadow-soft:0 18px 40px rgba(0,0,0,.6); --radius-xl:26px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+    body{
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+      background:radial-gradient(circle at top left,#302050 0,transparent 55%),
+               radial-gradient(circle at bottom right,#102033 0,transparent 60%),
+               linear-gradient(135deg,var(--bg-color),#050516);
+      color:#f8f7ff;
+    }
+    .studio-wrapper{width:min(1180px,100%);padding:18px}
+    .studio{
+      background:radial-gradient(circle at top,#262642,#0b0b16);
+      border-radius:28px;box-shadow:var(--shadow-soft);
+      border:1px solid rgba(255,255,255,.04);
+      padding:20px;position:relative;overflow:hidden;
+    }
+    .studio-header{
+      display:flex;align-items:center;justify-content:space-between;gap:16px;
+      padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.07);
+    }
+    .title-block{display:flex;flex-direction:column;gap:4px}
+    .app-title{
+      font-size:1.4rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+      display:flex;align-items:center;gap:8px;
+    }
+    .app-title .badge{
+      font-size:.7rem;padding:2px 8px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);font-weight:500;color:var(--primary-soft);
+      text-transform:none;
+    }
+    .subtitle{font-size:.85rem;color:var(--text-muted)}
+    .studio-icon{
+      display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:999px;
+      background:radial-gradient(circle at top,rgba(255,255,255,.06),rgba(0,0,0,.1));
+      border:1px solid rgba(255,255,255,.08);font-size:.85rem;color:var(--text-muted);
+    }
+    .studio-icon .emoji{font-size:1.3rem}
+
+    .studio-body{
+      display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);
+      gap:18px;padding-top:16px;align-items:stretch;
+    }
+
+    .kit-section{
+      background:linear-gradient(145deg,#101024,#050510);
+      border-radius:var(--radius-xl);
+      border:1px solid rgba(255,255,255,.06);
+      padding:18px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
+    }
+    .kit-header-row{display:flex;justify-content:space-between;align-items:center}
+    .section-title{font-size:.95rem;text-transform:uppercase;letter-spacing:.18em;color:var(--text-muted)}
+    .mini-led{display:inline-flex;align-items:center;gap:6px;font-size:.7rem;color:var(--text-muted)}
+    .mini-led-dot{width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,var(--secondary),#0ff);box-shadow:0 0 8px rgba(138,225,255,.8)}
+
+    .drum-stage{
+      position:relative;background:radial-gradient(circle at top,#272746,#05050e);
+      border-radius:28px;border:1px solid rgba(255,255,255,.05);
+      padding:26px 16px 22px;box-shadow:inset 0 18px 30px rgba(0,0,0,.7);
+      flex:1;display:flex;align-items:center;justify-content:center;
+    }
+    .drum-kit-grid{
+      display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+      grid-template-rows:repeat(3,auto);gap:14px;align-items:center;justify-items:center;
+      max-width:640px;width:100%;
+    }
+    .drum-piece{
+      border-radius:50%;border:3px solid var(--shell-rim);
+      background:radial-gradient(circle at top left,var(--shell-light),var(--shell-dark));
+      box-shadow:0 10px 22px rgba(0,0,0,.8),inset 0 3px 6px rgba(255,255,255,.08);
+      cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;
+      color:var(--pad-text);text-align:center;
+      transition:transform 80ms ease-out,box-shadow 80ms ease-out,border-color 80ms ease-out,background 80ms ease-out;
+      touch-action:manipulation;
+    }
+    .drum-piece .key{font-size:.95rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+    .drum-piece .label{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+    .drum-piece .sub{font-size:.64rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text-muted);margin-top:2px}
+    .drum-piece.active{
+      transform:translateY(3px);box-shadow:0 4px 10px rgba(0,0,0,.9);
+      border-color:var(--pad-active);background:radial-gradient(circle at top,#4d3d23,#1a1108);
+    }
+
+    .drum-piece.kick{grid-column:3;grid-row:3;width:180px;height:180px}
+    .drum-piece.snare{grid-column:3;grid-row:2;width:120px;height:120px}
+    .drum-piece.hihat{
+      grid-column:1;grid-row:2 / span 2;width:110px;height:110px;border-width:2px;
+      background:radial-gradient(circle at top,var(--cymbal-light),var(--cymbal));
+      border-color:rgba(131,93,21,.9);
+      box-shadow:0 10px 16px rgba(0,0,0,.9),inset 0 2px 3px rgba(255,255,255,.5);
+    }
+    .drum-piece.tom1{grid-column:2;grid-row:1;width:110px;height:110px}
+    .drum-piece.tom2{grid-column:4;grid-row:1;width:110px;height:110px}
+    .drum-piece.floor{grid-column:5;grid-row:2 / span 2;width:130px;height:130px}
+    .drum-piece.crash,.drum-piece.ride{
+      width:115px;height:115px;border-width:2px;
+      background:radial-gradient(circle at top,var(--cymbal-light),var(--cymbal));
+      border-color:rgba(131,93,21,.9);
+    }
+    .drum-piece.crash{grid-column:1 / span 2;grid-row:1}
+    .drum-piece.ride{grid-column:4 / span 2;grid-row:1}
+
+    .control-section{
+      background:linear-gradient(155deg,#151525,#050512);
+      border-radius:var(--radius-xl);
+      border:1px solid rgba(255,255,255,.08);
+      padding:14px;display:flex;flex-direction:column;gap:12px;overflow:hidden;
+    }
+    .panel-title{font-size:.9rem;text-transform:uppercase;letter-spacing:.16em;color:var(--text-muted)}
+    .record-status{font-size:.8rem;color:var(--text-muted)}
+    .record-dot{
+      display:inline-block;width:9px;height:9px;border-radius:50%;
+      background:var(--record-soft);border:1px solid var(--record);margin-right:6px;
+      box-shadow:0 0 10px rgba(255,75,92,.3);
+    }
+    .recording .record-dot{background:var(--record);box-shadow:0 0 16px rgba(255,75,92,.85)}
+
+    .controls-row{display:flex;flex-wrap:wrap;gap:8px}
+    .btn{
+      border-radius:999px;padding:7px 14px;border:1px solid rgba(255,255,255,.15);
+      background:rgba(8,8,30,.9);color:#f7f7ff;font-size:.8rem;cursor:pointer;
+      display:inline-flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.12em;
+      box-shadow:0 4px 10px rgba(0,0,0,.6);touch-action:manipulation;
+    }
+    .btn:disabled{opacity:.5;cursor:default;box-shadow:none}
+    .btn-record{border-color:var(--record);background:linear-gradient(135deg,var(--record-soft),rgba(0,0,0,.9))}
+    .btn-record.recording{background:linear-gradient(135deg,var(--record),#630013);box-shadow:0 0 16px rgba(255,75,92,.7)}
+    .btn-primary{border-color:rgba(255,255,255,.24);background:linear-gradient(135deg,rgba(255,122,155,.3),rgba(5,5,14,.95))}
+
+    .volume-row{display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--text-muted)}
+    .volume-row .label{text-transform:uppercase;letter-spacing:.12em;font-size:.74rem;white-space:nowrap}
+    .volume-slider{flex:1}
+    .volume-slider input[type=range]{width:100%;accent-color:var(--secondary)}
+
+    .toggle-row{display:flex;align-items:center;gap:8px;font-size:.76rem;color:var(--text-muted)}
+    .toggle-row label{display:flex;align-items:center;gap:6px;cursor:pointer}
+    .toggle-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--primary)}
+
+    .panel{
+      padding:9px 10px;border-radius:12px;background:rgba(0,0,0,.45);
+      border:1px solid rgba(255,255,255,.06);font-size:.72rem;color:var(--text-muted);
+    }
+    .panel-title-sm{
+      text-transform:uppercase;letter-spacing:.16em;font-size:.7rem;margin-bottom:6px;color:#c3c2dd;
+    }
+    .timeline{max-height:110px;overflow:auto}
+    .timeline-empty{font-style:italic;color:rgba(255,255,255,.4)}
+    .timeline-list{list-style:none}
+    .timeline-item{display:flex;justify-content:space-between;padding:2px 0}
+    .timeline-item .sound{color:#f4f3ff;text-transform:uppercase;letter-spacing:.06em}
+    .timeline-item .time{color:var(--text-muted);font-size:.7rem}
+
+    textarea.pattern-input{
+      width:100%;min-height:140px;resize:vertical;border-radius:10px;
+      border:1px solid rgba(255,255,255,.12);background:rgba(4,4,16,.8);
+      color:#f4f3ff;padding:8px 10px;outline:none;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+      font-size:.75rem;line-height:1.35;
+    }
+    select.pattern-select{
+      width:100%;
+      padding:8px 10px;
+      border-radius:10px;
+      background:rgba(4,4,16,0.9);
+      color:#f4f3ff;
+      border:1px solid rgba(255,255,255,0.15);
+      font-size:0.8rem;
+      outline:none;
+    }
+    .msg{margin-top:6px;font-size:.72rem;color:rgba(255,255,255,.65)}
+
+    @media (max-width:780px){.studio-body{grid-template-columns:minmax(0,1fr)}}
+    @media (max-width:600px){
+      .drum-kit-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+      .drum-piece.kick{width:140px;height:140px;grid-column:2 / span 2}
+      .drum-piece.snare{width:100px;height:100px}
+      .drum-piece.floor{width:105px;height:105px}
+      .drum-piece.hihat,.drum-piece.tom1,.drum-piece.tom2,.drum-piece.crash,.drum-piece.ride{width:90px;height:90px}
+    }
+  </style>
+</head>
+<body>
+  <div class="studio-wrapper">
+    <div class="studio">
+      <header class="studio-header">
+        <div class="title-block">
+          <div class="app-title">
+            <span>Virtual Drum Kit</span>
+            <span class="badge">Library + Loader</span>
+          </div>
+          <p class="subtitle">Pick a groove from the library, or paste JSON. Record, play, loop, stop.</p>
+        </div>
+        <div class="studio-icon">
+          <span class="emoji">🥁</span>
+          <span>Web Audio</span>
+        </div>
+      </header>
+
+      <main class="studio-body">
+        <section class="kit-section" aria-label="Drum kit">
+          <div class="kit-header-row">
+            <div class="section-title">Drum Set</div>
+            <div class="mini-led"><span class="mini-led-dot"></span>Live</div>
+          </div>
+
+          <div class="drum-stage">
+            <div class="drum-kit-grid">
+              <button class="drum-piece crash" data-key="q" type="button">
+                <span class="key">Q</span><span class="label">Crash</span><span class="sub">Accent</span>
+              </button>
+              <button class="drum-piece ride" data-key="e" type="button">
+                <span class="key">E</span><span class="label">Ride</span><span class="sub">Cymbal</span>
+              </button>
+              <button class="drum-piece tom1" data-key="w" type="button">
+                <span class="key">W</span><span class="label">Tom 1</span><span class="sub">High</span>
+              </button>
+              <button class="drum-piece tom2" data-key="r" type="button">
+                <span class="key">R</span><span class="label">Tom 2</span><span class="sub">Mid</span>
+              </button>
+              <button class="drum-piece hihat" data-key="a" type="button">
+                <span class="key">A</span><span class="label">Hi-Hat</span><span class="sub">Closed</span>
+              </button>
+              <button class="drum-piece floor" data-key="l" type="button">
+                <span class="key">L</span><span class="label">Floor Tom</span><span class="sub">Low</span>
+              </button>
+              <button class="drum-piece snare" data-key="s" type="button">
+                <span class="key">S</span><span class="label">Snare</span><span class="sub">Backbeat</span>
+              </button>
+              <button class="drum-piece kick" data-key="space" type="button">
+                <span class="key">Space</span><span class="label">Kick</span><span class="sub">Bass Drum</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-section" aria-label="Controls">
+          <div>
+            <div class="panel-title">Controls</div>
+            <div class="record-status" id="record-status"><span class="record-dot"></span>Idle</div>
+          </div>
+
+          <div class="controls-row">
+            <button type="button" class="btn btn-record" id="record-btn"><span>⏺</span><span class="label">Record</span></button>
+            <button type="button" class="btn btn-primary" id="play-btn" disabled><span>▶</span><span class="label">Play</span></button>
+            <button type="button" class="btn" id="stop-btn" disabled><span>⏹</span><span class="label">Stop</span></button>
+            <button type="button" class="btn" id="clear-btn" disabled><span>✕</span><span class="label">Clear</span></button>
+          </div>
+
+          <div class="volume-row">
+            <span class="label">Master volume</span>
+            <div class="volume-slider"><input type="range" id="volume-slider" min="0" max="100" value="80" /></div>
+          </div>
+
+          <div class="toggle-row">
+            <label><input type="checkbox" id="loop-toggle" /><span>Loop playback</span></label>
+          </div>
+
+          <div class="panel timeline" aria-live="polite">
+            <div class="panel-title-sm">Current pattern (recorded or loaded)</div>
+            <div id="timeline-content" class="timeline-empty">No pattern yet. Record one or load from library / JSON.</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title-sm">Pattern library</div>
+            <select id="pattern-library" class="pattern-select">
+              <option value="">Select a song-style groove…</option>
+              <option value="teen_spirit">Smells Like Teen Spirit (Groove)</option>
+              <option value="seven_nation">Seven Nation Army (Groove)</option>
+              <option value="back_in_black">Back in Black (Groove)</option>
+              <option value="billie_jean">Billie Jean (Groove)</option>
+                 <option value="cristmas">Cristmas Groove</option>
+            </select>
+            <div class="msg">Selecting a pattern loads it instantly into the JSON box.</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title-sm">Pattern input (JSON)</div>
+            <textarea class="pattern-input" id="pattern-input"></textarea>
+            <div class="controls-row" style="margin-top:8px;">
+              <button type="button" class="btn btn-primary" id="load-pattern-btn"><span>⤓</span><span class="label">Load Pattern</span></button>
+              <button type="button" class="btn" id="play-loaded-btn" disabled><span>▶</span><span class="label">Play Loaded</span></button>
+            </div>
+            <div class="msg" id="pattern-msg">Tip: keys are q w e r a s l and space for kick.</div>
+          </div>
+
+          <div class="panel" style="background: rgba(4,4,16,0.9);">
+            <div class="panel-title-sm">How to play</div>
+            <ol style="padding-left:16px; margin-top:4px;">
+              <li><strong>Play</strong> Tap drums or press Q W E R A S L and Space.</li>
+              <li><strong>Record</strong> Press Record, play, press Record again to stop.</li>
+              <li><strong>Library</strong> Pick a groove from the dropdown to auto-load JSON.</li>
+              <li><strong>Load</strong> Paste JSON and press Load Pattern.</li>
+              <li><strong>Loop</strong> Enable Loop playback then Play. Stop ends it.</li>
+            </ol>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // ---------------------------
+    // Web Audio drum synth
+    // ---------------------------
+    let audioCtx = null;
+    let masterGain = null;
+    let masterVolume = 0.8;
+
+    function ensureAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = masterVolume;
+      masterGain.connect(audioCtx.destination);
+    }
+
+    function setMasterVolume(v) {
+      masterVolume = v;
+      if (masterGain) masterGain.gain.value = masterVolume;
+    }
+
+    function makeNoiseBuffer(durationSec = 0.25) {
+      const sampleRate = audioCtx.sampleRate;
+      const length = Math.floor(sampleRate * durationSec);
+      const buffer = audioCtx.createBuffer(1, length, sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1);
+      return buffer;
+    }
+
+    function playKick() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+      gain.gain.setValueAtTime(1.0, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(gain);
+      gain.connect(masterGain);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    }
+
+    function playSnare() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(0.2);
+
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.setValueAtTime(1200, t);
+
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.9, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+      noise.connect(hp);
+      hp.connect(noiseGain);
+      noiseGain.connect(masterGain);
+
+      const tone = audioCtx.createOscillator();
+      tone.type = "triangle";
+      tone.frequency.setValueAtTime(180, t);
+
+      const toneGain = audioCtx.createGain();
+      toneGain.gain.setValueAtTime(0.35, t);
+      toneGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+      tone.connect(toneGain);
+      toneGain.connect(masterGain);
+
+      noise.start(t); noise.stop(t + 0.2);
+      tone.start(t);  tone.stop(t + 0.15);
+    }
+
+    function playHiHatClosed() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(0.08);
+
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.setValueAtTime(6000, t);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+
+      noise.connect(hp);
+      hp.connect(gain);
+      gain.connect(masterGain);
+
+      noise.start(t); noise.stop(t + 0.08);
+    }
+
+    function playTom(freq = 220) {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.72, t + 0.12);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.9, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(t); osc.stop(t + 0.25);
+    }
+
+    function playCrash() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(1.2);
+
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.setValueAtTime(9000, t);
+      bp.Q.setValueAtTime(0.8, t);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+
+      noise.connect(bp);
+      bp.connect(gain);
+      gain.connect(masterGain);
+
+      noise.start(t); noise.stop(t + 1.2);
+    }
+
+    function playRide() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(0.7);
+
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.setValueAtTime(7500, t);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.4, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
+      noise.connect(hp);
+      hp.connect(gain);
+      gain.connect(masterGain);
+
+      noise.start(t); noise.stop(t + 0.7);
+    }
+
+    function normalizeKey(k) {
+      if (k === "space" || k === "Space" || k === "SPACE") return " ";
+      if (k === " ") return " ";
+      return String(k).toLowerCase();
+    }
+
+    function isAllowedKey(k) {
+      const key = normalizeKey(k);
+      return ["q","w","e","r","a","s","l"," "].includes(key);
+    }
+
+    function soundLabelForKey(k) {
+      const key = normalizeKey(k);
+      const labelMap = { " ": "Kick", s: "Snare", a: "Hi-Hat", w: "Tom 1", r: "Tom 2", l: "Floor Tom", q: "Crash", e: "Ride" };
+      return labelMap[key] || "Unknown";
+    }
+
+    function playByKey(key) {
+      ensureAudio();
+      const k = normalizeKey(key);
+      switch (k) {
+        case " ": playKick(); return "Kick";
+        case "s": playSnare(); return "Snare";
+        case "a": playHiHatClosed(); return "Hi-Hat";
+        case "w": playTom(260); return "Tom 1";
+        case "r": playTom(210); return "Tom 2";
+        case "l": playTom(150); return "Floor Tom";
+        case "q": playCrash(); return "Crash";
+        case "e": playRide(); return "Ride";
+        default: return null;
+      }
+    }
+
+    // ---------------------------
+    // Pattern Library (song-style drum grooves)
+    // ---------------------------
+    const PATTERN_LIBRARY = {
+      teen_spirit: [
+        { key: "q", timeMs: 0 },
+        { key: " ", timeMs: 0 },
+        { key: "a", timeMs: 0 },
+        { key: "a", timeMs: 260 },
+        { key: "s", timeMs: 520 },
+        { key: "a", timeMs: 520 },
+        { key: "a", timeMs: 780 },
+        { key: " ", timeMs: 1040 },
+        { key: "a", timeMs: 1040 },
+        { key: "a", timeMs: 1300 },
+        { key: "s", timeMs: 1560 },
+        { key: "a", timeMs: 1560 }
+      ],
+      seven_nation: [
+        { key: "q", timeMs: 0 },
+        { key: " ", timeMs: 0 },
+        { key: "a", timeMs: 0 },
+        { key: "s", timeMs: 500 },
+        { key: "a", timeMs: 500 },
+        { key: " ", timeMs: 1000 },
+        { key: "a", timeMs: 1000 },
+        { key: "s", timeMs: 1500 },
+        { key: "a", timeMs: 1500 }
+      ],
+      back_in_black: [
+        { key: " ", timeMs: 0 },
+        { key: "a", timeMs: 0 },
+        { key: "a", timeMs: 300 },
+        { key: "s", timeMs: 600 },
+        { key: "a", timeMs: 600 },
+        { key: " ", timeMs: 900 },
+        { key: "a", timeMs: 900 },
+        { key: "s", timeMs: 1500 },
+        { key: "a", timeMs: 1500 }
+      ],
+      billie_jean: [
+        { key: " ", timeMs: 0 },
+        { key: "a", timeMs: 0 },
+        { key: "a", timeMs: 250 },
+        { key: "s", timeMs: 500 },
+        { key: "a", timeMs: 750 },
+        { key: " ", timeMs: 1000 },
+        { key: "a", timeMs: 1250 },
+        { key: "s", timeMs: 1500 },
+        { key: "a", timeMs: 1750 }
+      ],
+      cristmas: [
+  {"key":"q","timeMs":0},
+  {"key":" ","timeMs":0},
+  {"key":"a","timeMs":0},
+  {"key":"a","timeMs":250},
+  {"key":"s","timeMs":500},
+  {"key":"a","timeMs":500},
+  {"key":"a","timeMs":750},
+  {"key":" ","timeMs":1000},
+  {"key":"a","timeMs":1000},
+  {"key":"a","timeMs":1250},
+  {"key":"s","timeMs":1500},
+  {"key":"a","timeMs":1500},
+  {"key":"a","timeMs":1750},
+
+  {"key":" ","timeMs":2000},
+  {"key":"a","timeMs":2000},
+  {"key":"a","timeMs":2250},
+  {"key":"s","timeMs":2500},
+  {"key":"a","timeMs":2500},
+  {"key":"a","timeMs":2750},
+  {"key":" ","timeMs":3000},
+  {"key":"a","timeMs":3000},
+  {"key":"a","timeMs":3250},
+  {"key":"s","timeMs":3500},
+  {"key":"a","timeMs":3500},
+  {"key":"a","timeMs":3750},
+
+  {"key":" ","timeMs":4000},
+  {"key":"a","timeMs":4000},
+  {"key":"a","timeMs":4250},
+  {"key":"s","timeMs":4500},
+  {"key":"a","timeMs":4500},
+  {"key":"a","timeMs":4750},
+  {"key":" ","timeMs":5000},
+  {"key":"a","timeMs":5000},
+  {"key":"a","timeMs":5250},
+  {"key":"s","timeMs":5500},
+  {"key":"a","timeMs":5500},
+  {"key":"a","timeMs":5750},
+
+  {"key":" ","timeMs":6000},
+  {"key":"a","timeMs":6000},
+  {"key":"a","timeMs":6250},
+  {"key":"s","timeMs":6500},
+  {"key":"a","timeMs":6500},
+  {"key":"a","timeMs":6750},
+  {"key":" ","timeMs":7000},
+  {"key":"a","timeMs":7000},
+  {"key":"a","timeMs":7250},
+  {"key":"s","timeMs":7500},
+  {"key":"a","timeMs":7500},
+  {"key":"w","timeMs":7750},
+  {"key":"r","timeMs":7875},
+  {"key":"l","timeMs":7950},
+
+  {"key":"q","timeMs":8000},
+  {"key":" ","timeMs":8000},
+  {"key":"e","timeMs":8000},
+  {"key":"e","timeMs":8250},
+  {"key":"s","timeMs":8500},
+  {"key":"e","timeMs":8500},
+  {"key":"e","timeMs":8750},
+  {"key":" ","timeMs":9000},
+  {"key":"e","timeMs":9000},
+  {"key":"e","timeMs":9250},
+  {"key":"s","timeMs":9500},
+  {"key":"e","timeMs":9500},
+  {"key":"e","timeMs":9750},
+
+  {"key":" ","timeMs":10000},
+  {"key":"e","timeMs":10000},
+  {"key":"e","timeMs":10250},
+  {"key":"s","timeMs":10500},
+  {"key":"e","timeMs":10500},
+  {"key":"e","timeMs":10750},
+  {"key":" ","timeMs":11000},
+  {"key":"e","timeMs":11000},
+  {"key":"e","timeMs":11250},
+  {"key":"s","timeMs":11500},
+  {"key":"e","timeMs":11500},
+  {"key":"e","timeMs":11750},
+
+  {"key":" ","timeMs":12000},
+  {"key":"e","timeMs":12000},
+  {"key":"e","timeMs":12250},
+  {"key":"s","timeMs":12500},
+  {"key":"e","timeMs":12500},
+  {"key":"e","timeMs":12750},
+  {"key":" ","timeMs":13000},
+  {"key":"e","timeMs":13000},
+  {"key":"e","timeMs":13250},
+  {"key":"s","timeMs":13500},
+  {"key":"e","timeMs":13500},
+  {"key":"e","timeMs":13750},
+
+  {"key":" ","timeMs":14000},
+  {"key":"e","timeMs":14000},
+  {"key":"e","timeMs":14250},
+  {"key":"s","timeMs":14500},
+  {"key":"e","timeMs":14500},
+  {"key":"e","timeMs":14750},
+  {"key":" ","timeMs":15000},
+  {"key":"e","timeMs":15000},
+  {"key":"w","timeMs":15250},
+  {"key":"r","timeMs":15400},
+  {"key":"l","timeMs":15550},
+  {"key":"q","timeMs":15800}
+]
+
+    };
+
+    // ---------------------------
+    // UI + recording + playback + pattern loading
+    // ---------------------------
+    const pieces = Array.from(document.querySelectorAll(".drum-piece"));
+    const recordBtn = document.getElementById("record-btn");
+    const playBtn = document.getElementById("play-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    const clearBtn = document.getElementById("clear-btn");
+    const recordStatus = document.getElementById("record-status");
+    const timelineContent = document.getElementById("timeline-content");
+    const volumeSlider = document.getElementById("volume-slider");
+    const loopToggle = document.getElementById("loop-toggle");
+
+    const patternLibrarySelect = document.getElementById("pattern-library");
+    const patternInput = document.getElementById("pattern-input");
+    const loadPatternBtn = document.getElementById("load-pattern-btn");
+    const playLoadedBtn = document.getElementById("play-loaded-btn");
+    const patternMsg = document.getElementById("pattern-msg");
+
+    let isRecording = false;
+    let isPlayingBack = false;
+    let recordingStartTime = 0;
+
+    // current active pattern
+    let events = [];
+    // explicitly loaded pattern
+    let loadedEvents = [];
+
+    let playbackTimeouts = [];
+    let stopRequested = false;
+
+    function flashPieceByKey(key) {
+      const k = normalizeKey(key);
+      const piece = pieces.find(p => {
+        const dk = p.dataset.key;
+        if (dk === "space") return k === " ";
+        return dk.toLowerCase() === k;
+      });
+      if (!piece) return;
+      piece.classList.add("active");
+      setTimeout(() => piece.classList.remove("active"), 80);
+    }
+
+    function triggerHit(key) {
+      const label = playByKey(key);
+      if (!label) return;
+
+      flashPieceByKey(key);
+
+      if (isRecording) {
+        const now = performance.now();
+        events.push({ key: normalizeKey(key), soundLabel: label, timeOffset: now - recordingStartTime });
+        updateTimeline();
+      }
+    }
+
+    function updateRecordUI() {
+      if (isRecording) {
+        recordStatus.classList.add("recording");
+        recordStatus.innerHTML = '<span class="record-dot"></span>Recording…';
+        recordBtn.classList.add("recording");
+        recordBtn.querySelector(".label").textContent = "Stop";
+      } else {
+        recordStatus.classList.remove("recording");
+        recordStatus.innerHTML = '<span class="record-dot"></span>Idle';
+        recordBtn.classList.remove("recording");
+        recordBtn.querySelector(".label").textContent = "Record";
+      }
+    }
+
+    function setPatternMessage(text, isError=false) {
+      patternMsg.textContent = text;
+      patternMsg.style.color = isError ? "rgba(255,120,120,0.95)" : "rgba(255,255,255,0.65)";
+    }
+
+    function updateTimeline() {
+      if (!events.length) {
+        timelineContent.className = "timeline-empty";
+        timelineContent.textContent = "No pattern yet. Record one or load from library / JSON.";
+        playBtn.disabled = true;
+        clearBtn.disabled = true;
+        stopBtn.disabled = true;
+        return;
+      }
+
+      const list = document.createElement("ul");
+      list.className = "timeline-list";
+
+      for (const ev of events) {
+        const li = document.createElement("li");
+        li.className = "timeline-item";
+
+        const sound = document.createElement("span");
+        sound.className = "sound";
+        sound.textContent = ev.soundLabel;
+
+        const time = document.createElement("span");
+        time.className = "time";
+        time.textContent = (ev.timeOffset / 1000).toFixed(2) + "s";
+
+        li.appendChild(sound);
+        li.appendChild(time);
+        list.appendChild(li);
+      }
+
+      timelineContent.className = "";
+      timelineContent.innerHTML = "";
+      timelineContent.appendChild(list);
+
+      playBtn.disabled = false;
+      clearBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function clearAllPlaybackTimeouts() {
+      for (const id of playbackTimeouts) clearTimeout(id);
+      playbackTimeouts = [];
+    }
+
+    function stopPlayback() {
+      if (!isPlayingBack) return;
+      stopRequested = true;
+      clearAllPlaybackTimeouts();
+      isPlayingBack = false;
+
+      recordBtn.disabled = false;
+      clearBtn.disabled = !events.length;
+      playBtn.disabled = !events.length;
+      stopBtn.disabled = true;
+    }
+
+    function startPlaybackOnce(patternEvents) {
+      if (!patternEvents.length) return;
+
+      isPlayingBack = true;
+      stopRequested = false;
+
+      playBtn.disabled = true;
+      recordBtn.disabled = true;
+      clearBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      clearAllPlaybackTimeouts();
+
+      const totalDuration = patternEvents[patternEvents.length - 1].timeOffset;
+
+      for (const ev of patternEvents) {
+        const id = setTimeout(() => {
+          if (!stopRequested) triggerHit(ev.key);
+        }, ev.timeOffset);
+        playbackTimeouts.push(id);
+      }
+
+      const endId = setTimeout(() => {
+        clearAllPlaybackTimeouts();
+
+        if (stopRequested || !loopToggle.checked) {
+          isPlayingBack = false;
+          recordBtn.disabled = false;
+          clearBtn.disabled = !events.length;
+          playBtn.disabled = !events.length;
+          stopBtn.disabled = true;
+          return;
+        }
+
+        startPlaybackOnce(patternEvents);
+      }, totalDuration + 90);
+
+      playbackTimeouts.push(endId);
+    }
+
+    function playbackCurrent() {
+      if (!events.length || isPlayingBack) return;
+      startPlaybackOnce(events);
+    }
+
+    function playbackLoaded() {
+      if (!loadedEvents.length || isPlayingBack) return;
+      events = loadedEvents.slice();
+      updateTimeline();
+      startPlaybackOnce(loadedEvents);
+    }
+
+    function clearPattern() {
+      if (isPlayingBack) return;
+      events = [];
+      loadedEvents = [];
+      playLoadedBtn.disabled = true;
+      updateTimeline();
+      setPatternMessage("Cleared. Pick from library or paste JSON then Load Pattern.");
+    }
+
+    function toggleRecording() {
+      if (isPlayingBack) return;
+
+      if (!isRecording) {
+        loadedEvents = [];
+        playLoadedBtn.disabled = true;
+        events = [];
+        updateTimeline();
+        isRecording = true;
+        recordingStartTime = performance.now();
+      } else {
+        isRecording = false;
+      }
+      updateRecordUI();
+    }
+
+    function loadPatternFromText(text) {
+      let obj;
+      try {
+        obj = JSON.parse(text);
+      } catch {
+        setPatternMessage('Invalid JSON. Use: [{"key":" ","timeMs":0}, ...]', true);
+        return;
+      }
+
+      if (!Array.isArray(obj)) {
+        setPatternMessage("Pattern must be a JSON array of events.", true);
+        return;
+      }
+
+      const converted = [];
+      for (let i = 0; i < obj.length; i++) {
+        const ev = obj[i] || {};
+        const key = normalizeKey(ev.key);
+        const timeMs = Number(ev.timeMs);
+
+        if (!isAllowedKey(key)) {
+          setPatternMessage("Bad key at index " + i + ". Allowed: q w e r a s l and space.", true);
+          return;
+        }
+        if (!Number.isFinite(timeMs) || timeMs < 0) {
+          setPatternMessage("Bad timeMs at index " + i + ". Must be a number >= 0.", true);
+          return;
+        }
+
+        converted.push({ key, soundLabel: soundLabelForKey(key), timeOffset: timeMs });
+      }
+
+      converted.sort((a,b) => a.timeOffset - b.timeOffset);
+
+      loadedEvents = converted;
+      events = converted.slice();
+      updateTimeline();
+
+      playLoadedBtn.disabled = false;
+      setPatternMessage("Loaded " + loadedEvents.length + " hits. Press Play Loaded (or Play).");
+    }
+
+    function loadPatternObject(patternArray) {
+      patternInput.value = JSON.stringify(patternArray, null, 2);
+      loadPatternFromText(patternInput.value);
+    }
+
+    // Seed with one library pattern initially
+    loadPatternObject(PATTERN_LIBRARY.teen_spirit);
+
+    // ---------------------------
+    // Event wiring
+    // ---------------------------
+
+    // Drums click
+    for (const piece of pieces) {
+      piece.addEventListener("click", () => {
+        ensureAudio();
+        const k = piece.dataset.key === "space" ? " " : piece.dataset.key.toLowerCase();
+        triggerHit(k);
+      });
+    }
+
+    // Keyboard
+    window.addEventListener("keydown", (e) => {
+      const key = e.key;
+      if (key === " " || key === "Enter") e.preventDefault();
+      ensureAudio();
+
+      if (key === " ") { triggerHit(" "); return; }
+
+      const lower = key.toLowerCase();
+      if (["q","w","e","r","a","s","l"].includes(lower)) {
+        e.preventDefault();
+        triggerHit(lower);
+      }
+    });
+
+    // Controls
+    recordBtn.addEventListener("click", () => { ensureAudio(); toggleRecording(); });
+    playBtn.addEventListener("click", () => { ensureAudio(); playbackCurrent(); });
+    stopBtn.addEventListener("click", () => { ensureAudio(); stopPlayback(); });
+    clearBtn.addEventListener("click", () => { ensureAudio(); clearPattern(); });
+
+    // JSON loader
+    loadPatternBtn.addEventListener("click", () => {
+      ensureAudio();
+      if (isPlayingBack) stopPlayback();
+      if (isRecording) { isRecording = false; updateRecordUI(); }
+      loadPatternFromText(patternInput.value);
+    });
+    playLoadedBtn.addEventListener("click", () => { ensureAudio(); playbackLoaded(); });
+
+    // Library dropdown
+    patternLibrarySelect.addEventListener("change", () => {
+      ensureAudio();
+      const key = patternLibrarySelect.value;
+      if (!key) return;
+      const pattern = PATTERN_LIBRARY[key];
+      if (!pattern) return;
+      if (isPlayingBack) stopPlayback();
+      if (isRecording) { isRecording = false; updateRecordUI(); }
+      loadPatternObject(pattern);
+      setPatternMessage("Loaded from library: " + patternLibrarySelect.options[patternLibrarySelect.selectedIndex].text);
+    });
+
+    // Volume
+    volumeSlider.addEventListener("input", () => {
+      setMasterVolume(volumeSlider.value / 100);
+    });
+    setMasterVolume(volumeSlider.value / 100);
+
+    updateRecordUI();
+    updateTimeline();
+  </script>
+</body>
+</html>

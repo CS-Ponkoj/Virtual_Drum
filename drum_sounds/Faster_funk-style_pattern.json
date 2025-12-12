@@ -1,0 +1,22 @@
+[
+  {"key":" ", "timeMs":0},
+  {"key":"a", "timeMs":0},
+
+  {"key":"a", "timeMs":200},
+  {"key":"s", "timeMs":400},
+  {"key":"a", "timeMs":400},
+
+  {"key":" ", "timeMs":600},
+  {"key":"a", "timeMs":600},
+
+  {"key":"a", "timeMs":800},
+  {"key":"s", "timeMs":1000},
+  {"key":"a", "timeMs":1000},
+
+  {"key":" ", "timeMs":1200},
+  {"key":"a", "timeMs":1200},
+
+  {"key":"a", "timeMs":1400},
+  {"key":"s", "timeMs":1600},
+  {"key":"a", "timeMs":1600}
+]

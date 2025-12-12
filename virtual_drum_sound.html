@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Virtual Drum Kit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg-color: #050510;
+      --shell-dark: #1b1b2a;
+      --shell-light: #33334a;
+      --shell-rim: #d3d3dd;
+      --cymbal: #f3c96b;
+      --cymbal-light: #ffe8a1;
+      --pad-active: #ffb347;
+      --pad-text: #f5f5ff;
+      --primary: #ff7a9b;
+      --primary-soft: #ffb3c7;
+      --secondary: #8ae1ff;
+      --record: #ff4b5c;
+      --record-soft: rgba(255, 75, 92, 0.2);
+      --text-muted: #aaa8c5;
+      --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.6);
+      --radius-xl: 26px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at top left, #302050 0, transparent 55%),
+        radial-gradient(circle at bottom right, #102033 0, transparent 60%),
+        linear-gradient(135deg, var(--bg-color), #050516);
+      color: #f8f7ff;
+    }
+
+    .studio-wrapper { width: min(1180px, 100%); padding: 18px; }
+    .studio {
+      background: radial-gradient(circle at top, #262642, #0b0b16);
+      border-radius: 28px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .studio-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .title-block { display: flex; flex-direction: column; gap: 4px; }
+    .app-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .app-title .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-weight: 500;
+      color: var(--primary-soft);
+      text-transform: none;
+    }
+    .subtitle { font-size: 0.85rem; color: var(--text-muted); }
+    .studio-icon {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.1));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .studio-icon .emoji { font-size: 1.3rem; }
+
+    .studio-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+      gap: 18px;
+      padding-top: 16px;
+      align-items: stretch;
+    }
+
+    .kit-section {
+      background: linear-gradient(145deg, #101024, #050510);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .kit-header-row { display: flex; justify-content: space-between; align-items: center; }
+    .section-title { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--text-muted); }
+    .mini-led { display: inline-flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--text-muted); }
+    .mini-led-dot { width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle, var(--secondary), #0ff); box-shadow: 0 0 8px rgba(138, 225, 255, 0.8); }
+
+    .drum-stage {
+      position: relative;
+      background: radial-gradient(circle at top, #272746, #05050e);
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 26px 16px 22px;
+      box-shadow: inset 0 18px 30px rgba(0, 0, 0, 0.7);
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .drum-kit-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-rows: repeat(3, auto);
+      gap: 14px;
+      align-items: center;
+      justify-items: center;
+      max-width: 640px;
+      width: 100%;
+    }
+    .drum-piece {
+      border-radius: 50%;
+      border: 3px solid var(--shell-rim);
+      background: radial-gradient(circle at top left, var(--shell-light), var(--shell-dark));
+      box-shadow: 0 10px 22px rgba(0,0,0,0.8), inset 0 3px 6px rgba(255,255,255,0.08);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: var(--pad-text);
+      text-align: center;
+      transition: transform 80ms ease-out, box-shadow 80ms ease-out, border-color 80ms ease-out, background 80ms ease-out;
+      touch-action: manipulation;
+    }
+    .drum-piece .key { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2px; }
+    .drum-piece .label { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .drum-piece .sub { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-muted); margin-top: 2px; }
+    .drum-piece.active { transform: translateY(3px); box-shadow: 0 4px 10px rgba(0,0,0,0.9); border-color: var(--pad-active); background: radial-gradient(circle at top, #4d3d23, #1a1108); }
+
+    .drum-piece.kick { grid-column: 3; grid-row: 3; width: 180px; height: 180px; }
+    .drum-piece.snare { grid-column: 3; grid-row: 2; width: 120px; height: 120px; }
+    .drum-piece.hihat {
+      grid-column: 1; grid-row: 2 / span 2; width: 110px; height: 110px;
+      border-width: 2px;
+      background: radial-gradient(circle at top, var(--cymbal-light), var(--cymbal));
+      border-color: rgba(131, 93, 21, 0.9);
+      box-shadow: 0 10px 16px rgba(0,0,0,0.9), inset 0 2px 3px rgba(255,255,255,0.5);
+    }
+    .drum-piece.tom1 { grid-column: 2; grid-row: 1; width: 110px; height: 110px; }
+    .drum-piece.tom2 { grid-column: 4; grid-row: 1; width: 110px; height: 110px; }
+    .drum-piece.floor { grid-column: 5; grid-row: 2 / span 2; width: 130px; height: 130px; }
+    .drum-piece.crash, .drum-piece.ride {
+      width: 115px; height: 115px; border-width: 2px;
+      background: radial-gradient(circle at top, var(--cymbal-light), var(--cymbal));
+      border-color: rgba(131, 93, 21, 0.9);
+    }
+    .drum-piece.crash { grid-column: 1 / span 2; grid-row: 1; }
+    .drum-piece.ride { grid-column: 4 / span 2; grid-row: 1; }
+
+    .control-section {
+      background: linear-gradient(155deg, #151525, #050512);
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .panel-title { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--text-muted); }
+    .record-status { font-size: 0.8rem; color: var(--text-muted); }
+    .record-dot {
+      display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+      background: var(--record-soft); border: 1px solid var(--record); margin-right: 6px;
+      box-shadow: 0 0 10px rgba(255, 75, 92, 0.3);
+    }
+    .recording .record-dot { background: var(--record); box-shadow: 0 0 16px rgba(255, 75, 92, 0.85); }
+
+    .controls-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn {
+      border-radius: 999px;
+      padding: 7px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(8, 8, 30, 0.9);
+      color: #f7f7ff;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      touch-action: manipulation;
+    }
+    .btn:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+    .btn-record { border-color: var(--record); background: linear-gradient(135deg, var(--record-soft), rgba(0,0,0,0.9)); }
+    .btn-record.recording { background: linear-gradient(135deg, var(--record), #630013); box-shadow: 0 0 16px rgba(255, 75, 92, 0.7); }
+    .btn-primary { border-color: rgba(255, 255, 255, 0.24); background: linear-gradient(135deg, rgba(255, 122, 155, 0.3), rgba(5, 5, 14, 0.95)); }
+
+    .volume-row { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--text-muted); }
+    .volume-row .label { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.74rem; white-space: nowrap; }
+    .volume-slider { flex: 1; }
+    .volume-slider input[type=range] { width: 100%; accent-color: var(--secondary); }
+
+    .toggle-row { display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: var(--text-muted); }
+    .toggle-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .toggle-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+    .timeline, .how-to {
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .timeline { max-height: 110px; overflow: auto; }
+    .timeline-title, .how-to-title {
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.7rem;
+      margin-bottom: 6px;
+      color: #c3c2dd;
+    }
+    .timeline-empty { font-style: italic; color: rgba(255, 255, 255, 0.4); }
+    .timeline-list { list-style: none; }
+    .timeline-item { display: flex; justify-content: space-between; padding: 2px 0; }
+    .timeline-item .sound { color: #f4f3ff; text-transform: uppercase; letter-spacing: 0.06em; }
+    .timeline-item .time { color: var(--text-muted); font-size: 0.7rem; }
+
+    .how-to { background: rgba(4, 4, 16, 0.9); }
+    .how-to ol { padding-left: 16px; margin-top: 4px; }
+    .how-to li { margin-bottom: 3px; line-height: 1.35; }
+    .how-to strong { color: var(--primary-soft); font-weight: 600; }
+
+    .audio-note {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.55);
+      border: 1px dashed rgba(255,255,255,0.18);
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.25);
+    }
+
+    @media (max-width: 780px) {
+      .studio-body { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .drum-kit-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .drum-piece.kick { width: 140px; height: 140px; grid-column: 2 / span 2; }
+      .drum-piece.snare { width: 100px; height: 100px; }
+      .drum-piece.floor { width: 105px; height: 105px; }
+      .drum-piece.hihat, .drum-piece.tom1, .drum-piece.tom2, .drum-piece.crash, .drum-piece.ride { width: 90px; height: 90px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="studio-wrapper">
+    <div class="studio">
+      <header class="studio-header">
+        <div class="title-block">
+          <div class="app-title">
+            <span>Virtual Drum Kit</span>
+            <span class="badge">Built-in Sound</span>
+          </div>
+          <p class="subtitle">No external audio files needed. Tap or press keys, record, and loop.</p>
+        </div>
+        <div class="studio-icon">
+          <span class="emoji">🥁</span>
+          <span>Web Audio</span>
+        </div>
+      </header>
+
+      <main class="studio-body">
+        <section class="kit-section" aria-label="Drum kit">
+          <div class="kit-header-row">
+            <div class="section-title">Drum Set</div>
+            <div class="mini-led"><span class="mini-led-dot"></span>Live</div>
+          </div>
+
+          <div class="drum-stage">
+            <div class="drum-kit-grid">
+              <button class="drum-piece crash" data-key="q" data-sound="Crash" type="button">
+                <span class="key">Q</span><span class="label">Crash</span><span class="sub">Accent</span>
+              </button>
+
+              <button class="drum-piece ride" data-key="e" data-sound="Ride" type="button">
+                <span class="key">E</span><span class="label">Ride</span><span class="sub">Cymbal</span>
+              </button>
+
+              <button class="drum-piece tom1" data-key="w" data-sound="Tom 1" type="button">
+                <span class="key">W</span><span class="label">Tom 1</span><span class="sub">High</span>
+              </button>
+
+              <button class="drum-piece tom2" data-key="r" data-sound="Tom 2" type="button">
+                <span class="key">R</span><span class="label">Tom 2</span><span class="sub">Mid</span>
+              </button>
+
+              <button class="drum-piece hihat" data-key="a" data-sound="Hi-Hat" type="button">
+                <span class="key">A</span><span class="label">Hi-Hat</span><span class="sub">Closed</span>
+              </button>
+
+              <button class="drum-piece floor" data-key="l" data-sound="Floor Tom" type="button">
+                <span class="key">L</span><span class="label">Floor Tom</span><span class="sub">Low</span>
+              </button>
+
+              <button class="drum-piece snare" data-key="s" data-sound="Snare" type="button">
+                <span class="key">S</span><span class="label">Snare</span><span class="sub">Backbeat</span>
+              </button>
+
+              <button class="drum-piece kick" data-key="space" data-sound="Kick" type="button">
+                <span class="key">Space</span><span class="label">Kick</span><span class="sub">Bass Drum</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-section" aria-label="Controls and help">
+          <div>
+            <div class="panel-title">Recorder and Loop</div>
+            <div class="record-status" id="record-status"><span class="record-dot"></span>Idle</div>
+          </div>
+
+          <div class="controls-row">
+            <button type="button" class="btn btn-record" id="record-btn"><span>⏺</span><span class="label">Record</span></button>
+            <button type="button" class="btn btn-primary" id="play-btn" disabled><span>▶</span><span class="label">Play</span></button>
+            <button type="button" class="btn" id="stop-btn" disabled><span>⏹</span><span class="label">Stop</span></button>
+            <button type="button" class="btn" id="clear-btn" disabled><span>✕</span><span class="label">Clear</span></button>
+          </div>
+
+          <div class="volume-row">
+            <span class="label">Master volume</span>
+            <div class="volume-slider"><input type="range" id="volume-slider" min="0" max="100" value="80" /></div>
+          </div>
+
+          <div class="toggle-row">
+            <label><input type="checkbox" id="loop-toggle" /><span>Loop playback</span></label>
+          </div>
+
+          <div class="audio-note" id="audio-note">
+            If you hear nothing, click any drum once to unlock audio (browser security).
+          </div>
+
+          <div class="timeline" aria-live="polite">
+            <div class="timeline-title">Recorded pattern</div>
+            <div id="timeline-content" class="timeline-empty">No recording yet. Press Record and start playing.</div>
+          </div>
+
+          <div class="how-to">
+            <div class="how-to-title">How to play</div>
+            <ol>
+              <li><strong>Play</strong> Tap drums or press keys Q W E R A S L and Space.</li>
+              <li><strong>Record</strong> Press Record, play, press Record again to stop.</li>
+              <li><strong>Loop</strong> Enable Loop playback, then press Play. Stop ends it.</li>
+              <li><strong>Volume</strong> Adjust Master volume anytime.</li>
+            </ol>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // ---------------------------
+    // Web Audio drum synth (no external files)
+    // ---------------------------
+
+    let audioCtx = null;
+    let masterGain = null;
+    let masterVolume = 0.8;
+
+    function ensureAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = masterVolume;
+      masterGain.connect(audioCtx.destination);
+
+      const note = document.getElementById("audio-note");
+      if (note) note.textContent = "Audio unlocked. Enjoy!";
+    }
+
+    function setMasterVolume(v) {
+      masterVolume = v;
+      if (masterGain) masterGain.gain.value = masterVolume;
+    }
+
+    function makeNoiseBuffer(durationSec = 0.25) {
+      const sampleRate = audioCtx.sampleRate;
+      const length = Math.floor(sampleRate * durationSec);
+      const buffer = audioCtx.createBuffer(1, length, sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1);
+      return buffer;
+    }
+
+    function playKick() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+
+      gain.gain.setValueAtTime(1.0, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(t);
+      osc.stop(t + 0.25);
+    }
+
+    function playSnare() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(0.2);
+
+      const noiseFilter = audioCtx.createBiquadFilter();
+      noiseFilter.type = "highpass";
+      noiseFilter.frequency.setValueAtTime(1200, t);
+
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.9, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(masterGain);
+
+      const tone = audioCtx.createOscillator();
+      tone.type = "triangle";
+      tone.frequency.setValueAtTime(180, t);
+
+      const toneGain = audioCtx.createGain();
+      toneGain.gain.setValueAtTime(0.35, t);
+      toneGain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+
+      tone.connect(toneGain);
+      toneGain.connect(masterGain);
+
+      noise.start(t);
+      noise.stop(t + 0.2);
+      tone.start(t);
+      tone.stop(t + 0.15);
+    }
+
+    function playHiHatClosed() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(0.08);
+
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.setValueAtTime(6000, t);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+
+      noise.connect(hp);
+      hp.connect(gain);
+      gain.connect(masterGain);
+
+      noise.start(t);
+      noise.stop(t + 0.08);
+    }
+
+    function playTom(freq = 220) {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const osc = audioCtx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.72, t + 0.12);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.9, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(t);
+      osc.stop(t + 0.25);
+    }
+
+    function playCrash() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(1.2);
+
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.setValueAtTime(9000, t);
+      bp.Q.setValueAtTime(0.8, t);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.55, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+
+      noise.connect(bp);
+      bp.connect(gain);
+      gain.connect(masterGain);
+
+      noise.start(t);
+      noise.stop(t + 1.2);
+    }
+
+    function playRide() {
+      ensureAudio();
+      const t = audioCtx.currentTime;
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = makeNoiseBuffer(0.7);
+
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.setValueAtTime(7500, t);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.4, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
+      noise.connect(hp);
+      hp.connect(gain);
+      gain.connect(masterGain);
+
+      noise.start(t);
+      noise.stop(t + 0.7);
+    }
+
+    function playByKey(key) {
+      ensureAudio();
+      switch (key) {
+        case " ": playKick(); return "Kick";
+        case "s": playSnare(); return "Snare";
+        case "a": playHiHatClosed(); return "Hi-Hat";
+        case "w": playTom(260); return "Tom 1";
+        case "r": playTom(210); return "Tom 2";
+        case "l": playTom(150); return "Floor Tom";
+        case "q": playCrash(); return "Crash";
+        case "e": playRide(); return "Ride";
+        default: return null;
+      }
+    }
+
+    // ---------------------------
+    // UI + recording + loop
+    // ---------------------------
+
+    const pieces = Array.from(document.querySelectorAll(".drum-piece"));
+    const recordBtn = document.getElementById("record-btn");
+    const playBtn = document.getElementById("play-btn");
+    const stopBtn = document.getElementById("stop-btn");
+    const clearBtn = document.getElementById("clear-btn");
+    const recordStatus = document.getElementById("record-status");
+    const timelineContent = document.getElementById("timeline-content");
+    const volumeSlider = document.getElementById("volume-slider");
+    const loopToggle = document.getElementById("loop-toggle");
+
+    let isRecording = false;
+    let isPlayingBack = false;
+    let recordingStartTime = 0;
+    let events = []; // { key, soundLabel, timeOffset }
+    let playbackTimeouts = [];
+    let stopRequested = false;
+
+    function flashPieceByKey(key) {
+      const piece = pieces.find(p => {
+        const k = p.dataset.key;
+        if (k === "space") return key === " ";
+        return k.toLowerCase() === key;
+      });
+      if (!piece) return;
+      piece.classList.add("active");
+      setTimeout(() => piece.classList.remove("active"), 80);
+    }
+
+    function triggerHit(key) {
+      const label = playByKey(key);
+      if (!label) return;
+
+      flashPieceByKey(key);
+
+      if (isRecording) {
+        const now = performance.now();
+        events.push({ key, soundLabel: label, timeOffset: now - recordingStartTime });
+        updateTimeline();
+      }
+    }
+
+    function updateRecordUI() {
+      if (isRecording) {
+        recordStatus.classList.add("recording");
+        recordStatus.innerHTML = '<span class="record-dot"></span>Recording…';
+        recordBtn.classList.add("recording");
+        recordBtn.querySelector(".label").textContent = "Stop";
+      } else {
+        recordStatus.classList.remove("recording");
+        recordStatus.innerHTML = '<span class="record-dot"></span>Idle';
+        recordBtn.classList.remove("recording");
+        recordBtn.querySelector(".label").textContent = "Record";
+      }
+    }
+
+    function updateTimeline() {
+      if (!events.length) {
+        timelineContent.className = "timeline-empty";
+        timelineContent.textContent = "No recording yet. Press Record and start playing.";
+        playBtn.disabled = true;
+        clearBtn.disabled = true;
+        stopBtn.disabled = true;
+        return;
+      }
+
+      const list = document.createElement("ul");
+      list.className = "timeline-list";
+
+      for (const ev of events) {
+        const li = document.createElement("li");
+        li.className = "timeline-item";
+
+        const sound = document.createElement("span");
+        sound.className = "sound";
+        sound.textContent = ev.soundLabel;
+
+        const time = document.createElement("span");
+        time.className = "time";
+        time.textContent = (ev.timeOffset / 1000).toFixed(2) + "s";
+
+        li.appendChild(sound);
+        li.appendChild(time);
+        list.appendChild(li);
+      }
+
+      timelineContent.className = "";
+      timelineContent.innerHTML = "";
+      timelineContent.appendChild(list);
+
+      playBtn.disabled = false;
+      clearBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function clearAllPlaybackTimeouts() {
+      for (const id of playbackTimeouts) clearTimeout(id);
+      playbackTimeouts = [];
+    }
+
+    function toggleRecording() {
+      if (isPlayingBack) return;
+
+      if (!isRecording) {
+        events = [];
+        updateTimeline();
+        isRecording = true;
+        recordingStartTime = performance.now();
+      } else {
+        isRecording = false;
+      }
+      updateRecordUI();
+    }
+
+    function startPlaybackOnce() {
+      if (!events.length) return;
+
+      isPlayingBack = true;
+      stopRequested = false;
+
+      playBtn.disabled = true;
+      recordBtn.disabled = true;
+      clearBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      clearAllPlaybackTimeouts();
+
+      const totalDuration = events[events.length - 1].timeOffset;
+
+      for (const ev of events) {
+        const id = setTimeout(() => {
+          if (!stopRequested) triggerHit(ev.key);
+        }, ev.timeOffset);
+        playbackTimeouts.push(id);
+      }
+
+      const endId = setTimeout(() => {
+        clearAllPlaybackTimeouts();
+
+        if (stopRequested || !loopToggle.checked) {
+          isPlayingBack = false;
+          recordBtn.disabled = false;
+          clearBtn.disabled = !events.length;
+          playBtn.disabled = !events.length;
+          stopBtn.disabled = true;
+          return;
+        }
+
+        startPlaybackOnce();
+      }, totalDuration + 90);
+
+      playbackTimeouts.push(endId);
+    }
+
+    function playbackRecording() {
+      if (!events.length || isPlayingBack) return;
+      startPlaybackOnce();
+    }
+
+    function stopPlayback() {
+      if (!isPlayingBack) return;
+      stopRequested = true;
+      clearAllPlaybackTimeouts();
+      isPlayingBack = false;
+
+      recordBtn.disabled = false;
+      clearBtn.disabled = !events.length;
+      playBtn.disabled = !events.length;
+      stopBtn.disabled = true;
+    }
+
+    function clearRecording() {
+      if (isPlayingBack) return;
+      events = [];
+      updateTimeline();
+    }
+
+    // Pad clicks
+    pieces.forEach(piece => {
+      piece.addEventListener("click", () => {
+        ensureAudio();
+        const k = piece.dataset.key === "space" ? " " : piece.dataset.key.toLowerCase();
+        triggerHit(k);
+      });
+    });
+
+    // Keyboard
+    window.addEventListener("keydown", e => {
+      const key = e.key;
+      if (key === " " || key === "Enter") e.preventDefault();
+
+      ensureAudio();
+
+      if (key === " ") return triggerHit(" ");
+      const lower = key.toLowerCase();
+      if (["q","w","e","r","a","s","l"].includes(lower)) {
+        e.preventDefault();
+        triggerHit(lower);
+      }
+    });
+
+    // Controls
+    recordBtn.addEventListener("click", () => { ensureAudio(); toggleRecording(); });
+    playBtn.addEventListener("click", () => { ensureAudio(); playbackRecording(); });
+    stopBtn.addEventListener("click", () => { ensureAudio(); stopPlayback(); });
+    clearBtn.addEventListener("click", () => { ensureAudio(); clearRecording(); });
+
+    // Volume
+    volumeSlider.addEventListener("input", () => setMasterVolume(volumeSlider.value / 100));
+    setMasterVolume(volumeSlider.value / 100);
+
+    updateRecordUI();
+    updateTimeline();
+  </script>
+</body>
+</html>
